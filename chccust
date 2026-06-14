@@ -21,7 +21,6 @@ local hitboxEnabled,hitboxSize,hitboxTrans,hitboxColor=false,5,0.5,Color3.fromRG
 local teamCheckEnabled=false
 local notifEnabled,soundEnabled=true,true
 local liquidGlass=false
-local flingEnabled=false
 local baseFOV=70
 local currentAspect=nil -- nil = native
 local V={}
@@ -206,7 +205,9 @@ local function bStr(b) if not b then return "---" end return b.kind=="Key" and t
 local listeningFor,bindLabels=nil,{}
 
 -- SCREEN GUI
-local SG=Instance.new("ScreenGui") SG.Name="luna_menu_v2" SG.Parent=game.CoreGui SG.ResetOnSpawn=false SG.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+local SG=Instance.new("ScreenGui") SG.Name="luna_menu_v2" SG.ResetOnSpawn=false SG.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+pcall(function() SG.Parent=game:GetService("CoreGui") end)
+if not SG.Parent then SG.Parent=game:GetService("Players").LocalPlayer.PlayerGui end
 
 -- UI HELPERS
 local function aC(o,r) local c=Instance.new("UICorner") c.CornerRadius=UDim.new(0,r or 8) c.Parent=o return c end
@@ -496,7 +497,7 @@ local _,aHome=mkTab("~","home",HomePage,6)
 local _,aSet=mkTab("=","settings",SetPage,7)
 aFly()
 
-RS.RenderStepped:Connect(function(dt) local f=math.floor(1/dt+0.5) if fFPS then fFPS.Text="FPS: "..f fFPS.TextColor3=f>=55 and GREEN or f>=30 and Color3.fromRGB(200,130,0) or RED_COL end end)
+RS.RenderStepped:Connect(function(dt) if dt>0 then local f=math.floor(1/dt+0.5) if fFPS then fFPS.Text="FPS: "..f fFPS.TextColor3=f>=55 and GREEN or f>=30 and Color3.fromRGB(200,130,0) or RED_COL end end end)
 RS.Heartbeat:Connect(function() local p=math.floor(LP:GetNetworkPing()*1000) if fPing then fPing.Text="Ping: "..p.."ms" fPing.TextColor3=p<=80 and GREEN or p<=150 and Color3.fromRGB(200,130,0) or RED_COL end end)
 
 -- CONFIG SYSTEM
@@ -685,67 +686,9 @@ end
 -- MISC PAGE (Binds + Fling + FOV + Aspect Ratio + Configs)
 -- ==============================
 local buildCfgList
-local FlingStatus
 do
   pageLayout(MiscPage)
 
-  -- FLING SECTION
-  mkSec(MiscPage,"sec_fling",1)
-  local cFling=mkCard(MiscPage,2) cardLayout(cFling,6)
-  local flingBtn=mkBtn(cFling,T("btn_fling"),Color3.fromRGB(155,45,15),36,1)
-  FlingStatus=mkL(cFling,T("fling_off"),0,0,0,18,12,RED_COL,true) FlingStatus.LayoutOrder=2
-  local flingHintL=mkL(cFling,T("fling_hint"),0,0,0,20,10,SUBTEXT,false) flingHintL.LayoutOrder=3
-
-  -- Fling Body Force (created once)
-  local flingBF=Instance.new("BodyForce")
-  flingBF.Name="LunaFling"
-  flingBF.Force=Vector3.new(math.huge,math.huge,math.huge)
-
-  local function enableFlingFn(on,silent)
-    flingEnabled=on
-    local char=LP.Character
-    if char then
-      local hrp=char:FindFirstChild("HumanoidRootPart")
-      if on then
-        for _,part in ipairs(char:GetDescendants()) do
-          if part:IsA("BasePart") then
-            pcall(function()
-              part.Massless=true
-              part.CustomPhysicalProperties=PhysicalProperties.new(math.huge,0.3,0.5)
-            end)
-          end
-        end
-        if hrp then
-          hrp.Anchored=true
-          hrp.AssemblyLinearVelocity=Vector3.zero
-          hrp.AssemblyAngularVelocity=Vector3.zero
-          flingBF.Parent=hrp
-          task.delay(0.5,function() if hrp and hrp.Parent then hrp.Anchored=false end end)
-        end
-      else
-        flingBF.Parent=nil
-        for _,part in ipairs(char:GetDescendants()) do
-          if part:IsA("BasePart") then
-            pcall(function()
-              part.Massless=false
-              part.CustomPhysicalProperties=PhysicalProperties.new(0.7,0.3,0.5)
-            end)
-          end
-        end
-      end
-    end
-    FlingStatus.Text=on and T("fling_on") or T("fling_off")
-    FlingStatus.TextColor3=on and GREEN or RED_COL
-    if not silent then playSound(on and "on" or "off") notify("Luna",on and "Fling ON" or "Fling OFF",2) end
-  end
-
-  flingBtn.MouseButton1Click:Connect(function() enableFlingFn(not flingEnabled,false) end)
-
-  -- Re-attach on respawn
-  LP.CharacterAdded:Connect(function(char)
-    task.wait(1)
-    if flingEnabled then enableFlingFn(true,true) end
-  end)
 
   -- FOV SECTION
   mkSec(MiscPage,"sec_fov",3)
@@ -1041,10 +984,22 @@ do
   fpsW.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then saveWP() end end)
   pingW.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then saveWP() end end)
 
-  RS.RenderStepped:Connect(function(dt) if espFpsLbl and fpsW.Visible then espFpsLbl.Text="FPS: "..math.floor(1/dt+0.5) end end)
+  RS.RenderStepped:Connect(function(dt) if espFpsLbl and fpsW.Visible and dt>0 then espFpsLbl.Text="FPS: "..math.floor(1/dt+0.5) end end)
   RS.Heartbeat:Connect(function() if espPingLbl and pingW.Visible then local p=math.floor(LP:GetNetworkPing()*1000) espPingLbl.Text="Ping: "..p.."ms" end end)
   mkPillRow(c2,T("lbl_fpson"),true,function(on) if fpsW then fpsW.Visible=on end end,1)
   mkPillRow(c2,T("lbl_pingon"),true,function(on) if pingW then pingW.Visible=on end end,2)
+  local timeW,timeWL=mkWgt("MSK 00:00:00",UDim2.new(0,10,0,268))
+  timeWL.TextColor3=Color3.fromRGB(255,215,0)
+  task.spawn(function()
+    while true do
+      pcall(function()
+        local t=os.time()+3*3600
+        timeWL.Text=string.format("MSK %02d:%02d:%02d",math.floor(t/3600)%24,math.floor(t/60)%60,t%60)
+      end)
+      task.wait(1)
+    end
+  end)
+  mkPillRow(c2,"MSK Time",true,function(on) if timeW then timeW.Visible=on end end,3)
 end
 
 -- ==============================
@@ -1211,6 +1166,63 @@ CloseBtn.MouseButton1Click:Connect(function() opened=false closeUI() end)
 MinBtn.MouseButton1Click:Connect(function() opened=false closeUI() end)
 
 -- ==============================
+-- ==============================
+-- CHC LABELS (visible to all players in workspace)
+-- ==============================
+do
+  local CHC_DEV_IDS={[1226391195]=true,[3537349020]=true}
+  local function makeCHCLabel(char,labelTxt,r,g,b)
+    pcall(function()
+      local head=char:WaitForChild("Head",5)
+      if not head then return end
+      local old=head:FindFirstChild("CHC_BB")
+      if old then old:Destroy() end
+      local bb=Instance.new("BillboardGui")
+      bb.Name="CHC_BB"
+      bb.Parent=head
+      bb.Size=UDim2.new(0,90,0,28)
+      bb.StudsOffset=Vector3.new(0,2.8,0)
+      bb.AlwaysOnTop=false
+      bb.LightInfluence=0
+      bb.MaxDistance=100
+      local shadow=Instance.new("TextLabel")
+      shadow.Parent=bb
+      shadow.Size=UDim2.new(1,2,1,2)
+      shadow.Position=UDim2.new(0,1,0,1)
+      shadow.BackgroundTransparency=1
+      shadow.Text=labelTxt
+      shadow.Font=Enum.Font.GothamBold
+      shadow.TextSize=16
+      shadow.TextColor3=Color3.fromRGB(0,0,0)
+      shadow.TextXAlignment=Enum.TextXAlignment.Center
+      shadow.ZIndex=1
+      local lbl=Instance.new("TextLabel")
+      lbl.Parent=bb
+      lbl.Size=UDim2.new(1,0,1,0)
+      lbl.BackgroundTransparency=1
+      lbl.Text=labelTxt
+      lbl.Font=Enum.Font.GothamBold
+      lbl.TextSize=16
+      lbl.TextColor3=Color3.fromRGB(r,g,b)
+      lbl.TextXAlignment=Enum.TextXAlignment.Center
+      lbl.ZIndex=2
+    end)
+  end
+  local function applyMyCHC(char)
+    if CHC_DEV_IDS[LP.UserId] then
+      makeCHCLabel(char,"CHC DEV",255,215,0)
+    else
+      makeCHCLabel(char,"CHC",220,55,55)
+    end
+  end
+  if LP.Character then task.spawn(function() applyMyCHC(LP.Character) end) end
+  LP.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    applyMyCHC(char)
+  end)
+end
+
+
 -- GAME LOGIC
 -- ==============================
 local csKD={{Enum.KeyCode.W,1},{Enum.KeyCode.S,-1}}
