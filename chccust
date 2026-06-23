@@ -1010,7 +1010,7 @@ do
   local c1=mkCard(JBPage,2) cardLayout(c1)
   local jbBtn=mkBtn(c1,T("btn_jb"),Color3.fromRGB(190,80,12),36,1)
   local jbS=mkL(c1,T("jb_off"),0,0,0,18,12,RED_COL,true) jbS.LayoutOrder=2
-  mkSec(JBPage,"sec_rob",3)
+  mkSec(JBPage,"sec_rob",3) 
   local c2=mkCard(JBPage,4) cardLayout(c2)
   mkL(c2,"Robbery UI loads automatically.",0,0,0,28,10,SUBTEXT,false).TextWrapped=true
   jbBtn.MouseButton1Click:Connect(function() if not pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/v1xxsy/update/refs/heads/main/orherscript.txt"))() end) then playSound("off") notify("Jailbreak","Load failed",2) return end playSound("on") notify("Jailbreak","Script Loaded",2) jbS.Text=T("jb_on") jbS.TextColor3=GREEN end)
